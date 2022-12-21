@@ -25,7 +25,6 @@ except ModuleNotFoundError:
     print("Installing Pytorch Image Models...")
     pip_install("git+https://github.com/rwightman/pytorch-image-models")
 finally:
-    from timm import __version__ as timmversion
     from timm.data import resolve_data_config
     from timm.models import create_model
 
@@ -218,9 +217,7 @@ class TimmRunnner(BenchmarkRunner):
         self.num_classes = model.num_classes
 
         data_config = resolve_data_config(
-            vars(self._args) if timmversion >= "0.8.0" else self._args,
-            model=model,
-            use_test_size=not is_training,
+            self._args, model=model, use_test_size=not is_training
         )
         input_size = data_config["input_size"]
         recorded_batch_size = TIMM_MODELS[model_name]
@@ -260,6 +257,8 @@ class TimmRunnner(BenchmarkRunner):
             model.train()
         else:
             model.eval()
+
+        self.init_optimizer(device, model.parameters())
 
         self.validate_model(model, example_inputs)
 
@@ -309,7 +308,8 @@ class TimmRunnner(BenchmarkRunner):
         return self.loss(pred, self.target) / 10.0
 
     def forward_pass(self, mod, inputs, collect_outputs=True):
-        return mod(*inputs)
+        with self.autocast():
+            return mod(*inputs)
 
     def forward_and_backward_pass(self, mod, inputs, collect_outputs=True):
         cloned_inputs = clone_inputs(inputs)

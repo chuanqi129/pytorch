@@ -18,6 +18,7 @@ from contextlib import contextmanager
 
 import numpy as np
 import pandas as pd
+import psutil
 import torch
 
 import torch._dynamo
@@ -126,15 +127,6 @@ CI_SKIP_INDUCTOR_TRAINING = [
     "levit_128",  # fp64_OOM
     "xcit_large_24_p8_224",  # fp64_OOM
 ]
-
-
-CI_SKIP_OPTIMIZER = {
-    # TIMM
-    "convmixer_768_32",  # accuracy
-    "sebotnet33ts_256",  # accuracy
-    "tf_mixnet_l",  # This model is non-deterministic with same input + weights,
-    # but without optimizing over multiple iterations, this still passes
-}
 
 
 def model_specified_by_path(path_and_class_str):
@@ -807,6 +799,10 @@ def cast_to(dtype, model, inputs):
     return model, inputs
 
 
+def cast_to_bf16(model, inputs):
+    return cast_to(torch.bfloat16, model, inputs)
+
+
 def cast_to_fp16(model, inputs):
     return cast_to(torch.float16, model, inputs)
 
@@ -881,12 +877,10 @@ class BenchmarkRunner:
         self.use_amp = False
         self.grad_scaler = DummyGradScaler()
         self.autocast = NullContext
-        self.optimizer = None
         self._args = None
 
     def setup_amp(self):
-        if self.args.amp and self.args.training:
-            assert self.args.devices == ["cuda"], "AMP is supported only for CUDA"
+        if self.args.amp and self.args.training and self.args.devices == ["cuda"]:
             # AMP training can lead to small loss values which can undeflow
             # gradient values returning in zero gradients. To solve this
             # problem, PyTorch introduces GradScaler. GradScaler is a stateful
@@ -909,12 +903,19 @@ class BenchmarkRunner:
             #  harder.
             # self.grad_scaler = torch.cuda.amp.GradScaler(init_scale=2.0)
             self.autocast = torch.cuda.amp.autocast
+        elif self.args.bfloat16 and self.args.devices == ["cpu"]:
+            self.autocast = torch.cpu.amp.autocast
 
-    def init_optimizer(self, name, device, params):
-        if device == "cuda" and self.args.training and name not in CI_SKIP_OPTIMIZER:
-            self.optimizer = torch.optim.SGD(params, lr=0.01)
-        else:
-            self.optimizer = None
+    def init_optimizer(self, device, params):
+        self.optimizer = None
+        # TODO - Currently, optimizers are used incorrectly. Fix optimizers with
+        # https://github.com/pytorch/pytorch/pull/87492
+        # param_list = list(params)
+        # if device == "cuda" and len(param_list) != 0:
+        #     # capturable is only supported on cuda at the moment
+        #     self.optimizer = torch.optim.Adam(param_list, capturable=True)
+        # else:
+        #     self.optimizer = None
 
     @property
     def args(self):
@@ -993,6 +994,8 @@ class BenchmarkRunner:
             model, example_inputs = cast_to_fp32(model, example_inputs)
         elif self.args.float16:
             model, example_inputs = cast_to_fp16(model, example_inputs)
+        elif self.args.bfloat16:
+            model, example_inputs = cast_to_bf16(model, example_inputs)
 
         try:
             self.model_iter_fn(model, example_inputs)
@@ -1006,6 +1009,8 @@ class BenchmarkRunner:
             model, example_inputs = cast_to_fp32(model, example_inputs)
         elif self.args.float16:
             model, example_inputs = cast_to_fp16(model, example_inputs)
+        elif self.args.bfloat16:
+            model, example_inputs = cast_to_bf16(model, example_inputs)
         return model, example_inputs
 
     def decay_batch_exp(self, batch_size, factor=0.5, divisor=2):
@@ -1066,10 +1071,6 @@ class BenchmarkRunner:
         2) Checks if eager itself has variations.
         """
 
-        with open("in1.txt", "w") as f:
-            print(example_inputs, file=f)
-            print(list(model.parameters()), file=f)
-
         def record_status(accuracy_status):
             """
             Records the status in the csv file
@@ -1101,14 +1102,12 @@ class BenchmarkRunner:
         # Collect the fp64 reference outputs to be used later for accuracy checking.
         fp64_outputs = None
         try:
-            model_fp64, inputs_fp64 = cast_to_fp64(
-                deepcopy_and_maybe_ddp(model),
-                clone_inputs(example_inputs),
+            fp64_outputs = self.run_n_iterations(
+                *cast_to_fp64(
+                    deepcopy_and_maybe_ddp(model),
+                    clone_inputs(example_inputs),
+                )
             )
-            self.init_optimizer(name, current_device, model_fp64.parameters())
-            fp64_outputs = self.run_n_iterations(model_fp64, inputs_fp64)
-            with open("out1.txt", "w") as f:
-                print(fp64_outputs, file=f)
         except Exception:
             log.warning(
                 f"fp64 golden ref were not generated for {name}. Setting accuracy check to cosine"
@@ -1129,18 +1128,14 @@ class BenchmarkRunner:
         with self.pick_grad(name, self.args.training):
             # Get results of native pytorch
             reset_rng_state()
-            model_copy = deepcopy_and_maybe_ddp(model)
-            self.init_optimizer(name, current_device, model_copy.parameters())
             correct_result = self.run_n_iterations(
-                model_copy, clone_inputs(example_inputs)
+                deepcopy_and_maybe_ddp(model), clone_inputs(example_inputs)
             )
 
             # Rerun native pytorch
             reset_rng_state()
-            model_copy = deepcopy_and_maybe_ddp(model)
-            self.init_optimizer(name, current_device, model_copy.parameters())
             correct_rerun_result = self.run_n_iterations(
-                model_copy, clone_inputs(example_inputs)
+                deepcopy_and_maybe_ddp(model), clone_inputs(example_inputs)
             )
             if not same(
                 correct_result,
@@ -1156,11 +1151,11 @@ class BenchmarkRunner:
             reset_rng_state()
             torch._dynamo.reset()
             try:
-                model_copy = deepcopy_and_maybe_ddp(model)
-                self.init_optimizer(name, current_device, model_copy.parameters())
                 optimized_model_iter_fn = optimize_ctx(self.run_n_iterations)
 
-                new_result = optimized_model_iter_fn(model_copy, example_inputs)
+                new_result = optimized_model_iter_fn(
+                    deepcopy_and_maybe_ddp(model), example_inputs
+                )
             except Exception as e:
                 accuracy_status = "fail_to_run"
                 print(
@@ -1201,6 +1196,10 @@ class BenchmarkRunner:
                 latency = t1 - t0
                 if current_device == "cuda":
                     peak_mem = get_peak_memory()
+                elif current_device == "cpu":
+                    total = psutil.virtual_memory().total
+                    percentage = psutil.Process(os.getpid()).memory_percent()
+                    peak_mem = percentage * total / 10**9
             except Exception as e:
                 log.exception(f"Failed for {mode} {e}")
                 return sys.exit(-1)
@@ -1208,7 +1207,6 @@ class BenchmarkRunner:
 
         # Cast the model to float16/float32 as necessary
         model, example_inputs = self.maybe_cast(model, example_inputs)
-        self.init_optimizer(name, current_device, model.parameters())
         with self.pick_grad(name, self.args.training):
             ok, total = Stats.reset_counters()
             experiment_kwargs = {}
@@ -1392,7 +1390,10 @@ def parse_args(args=None):
         help="Whether to randomize the input values. Dimensions will be kept the same.",
     )
     parser.add_argument(
-        "--threads", "-t", type=int, help="number of threads to use for eager"
+        "--threads",
+        "-t",
+        type=int,
+        help="number of threads to use for eager and inductor",
     )
     parser.add_argument(
         "--nopython", action="store_true", help="Turn graph breaks into errors"
@@ -1575,6 +1576,9 @@ def parse_args(args=None):
 
     group_prec = parser.add_mutually_exclusive_group()
     group_prec.add_argument("--float16", action="store_true", help="cast model to fp16")
+    group_prec.add_argument(
+        "--bfloat16", action="store_true", help="cast model to bf16"
+    )
     group_prec.add_argument("--float32", action="store_true", help="cast model to fp32")
     group_prec.add_argument(
         "--amp", action="store_true", help="use automatic mixed precision"
@@ -1923,7 +1927,18 @@ def run(runner, args, original_dir=None):
         optimize_ctx = nothing
         output_filename = "nothing.csv"
     elif args.backend:
-        optimize_ctx = torch._dynamo.optimize(args.backend, nopython=args.nopython)
+        if args.backend == "ipex":
+            if args.bfloat16:
+                optimize_ctx = torch._dynamo.optimize(
+                    backends.ipex_bf16, nopython=args.nopython
+                )
+            else:
+                assert args.float32, "IPEX only supports fp32 and bf16 for now."
+                optimize_ctx = torch._dynamo.optimize(
+                    backends.ipex_fp32, nopython=args.nopython
+                )
+        else:
+            optimize_ctx = torch._dynamo.optimize(args.backend, nopython=args.nopython)
         experiment = speedup_experiment
         if args.accuracy:
             output_filename = f"accuracy_{args.backend}.csv"
@@ -2040,6 +2055,8 @@ def run(runner, args, original_dir=None):
                 model, example_inputs = cast_to_fp32(model, example_inputs)
             elif args.float16:
                 model, example_inputs = cast_to_fp16(model, example_inputs)
+            elif args.bfloat16:
+                model, example_inputs = cast_to_bf16(model, example_inputs)
 
             if args.log_operator_inputs:
                 log_operator_inputs(
