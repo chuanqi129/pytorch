@@ -953,12 +953,17 @@ class BenchmarkRunner:
     def __init__(self):
         self.model_iter_fn = None
         self.grad_scaler = DummyGradScaler()
-        self.autocast = NullContext
+        self.autocast = NullContext()
         self.optimizer = None
         self._args = None
 
     def setup_amp(self):
-        if self.args.amp and self.args.training and self.args.devices == ["cuda"]:
+        amp_dtype = os.getenv("INDUCTOR_AMP_DT")
+        if amp_dtype in ["float16", "FP16", "FLOAT16"]:
+            amp_dtype = torch.float16
+        else:
+            amp_dtype = torch.bfloat16
+        if self.args.amp and self.args.devices == ["cuda"]:
             # AMP training can lead to small loss values which can undeflow
             # gradient values returning in zero gradients. To solve this
             # problem, PyTorch introduces GradScaler. GradScaler is a stateful
@@ -980,9 +985,10 @@ class BenchmarkRunner:
             #  factor between eager and dynamo run, making accuracy check
             #  harder.
             # self.grad_scaler = torch.cuda.amp.GradScaler(init_scale=2.0)
-            self.autocast = torch.cuda.amp.autocast
+            print("Test amp with dt: ", amp_dtype)
+            self.autocast = torch.cuda.amp.autocast(dtype=amp_dtype)
         elif self.args.bfloat16 and self.args.devices == ["cpu"]:
-            self.autocast = torch.cpu.amp.autocast
+            self.autocast = torch.cpu.amp.autocast()
 
     def init_optimizer(self, name, device, params):
         if device == "cuda" and self.args.training and name not in CI_SKIP_OPTIMIZER:
