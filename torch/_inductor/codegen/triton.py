@@ -71,7 +71,7 @@ def config_of(args):
         raise NotImplementedError(f"unhandled {type(x)}: {x}")
 
     divisible_by_16 = [i for i, arg in enumerate(args) if is_aligned(arg)]
-    return instance_descriptor(tuple(divisible_by_16), ())
+    return instance_descriptor(tuple(divisible_by_16), (), (), ())
 
 
 class TritonPrinter(PythonPrinter):
