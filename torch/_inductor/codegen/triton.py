@@ -77,7 +77,7 @@ def config_of(args):
 class TritonPrinter(PythonPrinter):
     def _print_floor(self, expr):
         assert len(expr.args) == 1
-        return f"tl.libdevice.floor({self.paren(self._print(expr.args[0]))})"
+        return f"tl.math.floor({self.paren(self._print(expr.args[0]))})"
 
 
 texpr = TritonPrinter().doprint
@@ -146,23 +146,22 @@ class TritonOverrides(OpOverrides):
 
     @staticmethod
     def libdevice_abs(x):
-        return f"tl.libdevice.abs({x})"
-
+        return f"tl.math.abs({x})"
     @staticmethod
     def exp(x):
         return f"tl.exp({x})"
 
     @staticmethod
     def libdevice_exp(x):
-        return f"tl.libdevice.exp({x})"
+        return f"tl.math.exp({x})"
 
     @staticmethod
     def exp2(x):
-        return f"tl.libdevice.exp2({x})"
+        return f"tl.math.exp2({x})"
 
     @staticmethod
     def expm1(x):
-        return f"tl.libdevice.expm1({x})"
+        return f"tl.math.expm1({x})"
 
     @staticmethod
     def sqrt(x):
@@ -170,7 +169,7 @@ class TritonOverrides(OpOverrides):
 
     @staticmethod
     def libdevice_sqrt(x):
-        return f"tl.libdevice.sqrt({x})"
+        return f"tl.math.sqrt({x})"
 
     @staticmethod
     def relu(x):
@@ -194,7 +193,7 @@ class TritonOverrides(OpOverrides):
 
     @staticmethod
     def libdevice_cos(x):
-        return f"tl.libdevice.cos({x})"
+        return f"tl.math.cos({x})"
 
     @staticmethod
     def sin(x):
@@ -202,8 +201,7 @@ class TritonOverrides(OpOverrides):
 
     @staticmethod
     def libdevice_sin(x):
-        return f"tl.libdevice.sin({x})"
-
+        return f"tl.math.sin({x})"
     @staticmethod
     def index_expr(expr, dtype):
         return V.kernel.indexing(expr)[0]
@@ -216,67 +214,67 @@ class TritonOverrides(OpOverrides):
 
     @staticmethod
     def lgamma(x):
-        return f"tl.libdevice.lgamma({x})"
+        return f"tl.math.lgamma({x})"
 
     @staticmethod
     def erf(x):
-        return f"tl.libdevice.erf({x})"
+        return f"tl.math.erf({x})"
 
     @staticmethod
     def cosh(x):
-        return f"tl.libdevice.cosh({x})"
+        return f"tl.math.cosh({x})"
 
     @staticmethod
     def sinh(x):
-        return f"tl.libdevice.sinh({x})"
+        return f"tl.math.sinh({x})"
 
     @staticmethod
     def acos(x):
-        return f"tl.libdevice.acos({x})"
+        return f"tl.math.acos({x})"
 
     @staticmethod
     def acosh(x):
-        return f"tl.libdevice.acosh({x})"
+        return f"tl.math.acosh({x})"
 
     @staticmethod
     def asin(x):
-        return f"tl.libdevice.asin({x})"
+        return f"tl.math.asin({x})"
 
     @staticmethod
     def asinh(x):
-        return f"tl.libdevice.asinh({x})"
+        return f"tl.math.asinh({x})"
 
     @staticmethod
     def atan2(x, y):
-        return f"tl.libdevice.atan2({x}, {y})"
+        return f"tl.math.atan2({x}, {y})"
 
     @staticmethod
     def atan(x):
-        return f"tl.libdevice.atan({x})"
+        return f"tl.math.atan({x})"
 
     @staticmethod
     def atanh(x):
-        return f"tl.libdevice.atanh({x})"
+        return f"tl.math.atanh({x})"
 
     @staticmethod
     def copysign(x, y):
-        return f"tl.libdevice.copysign({x}, {y})"
+        return f"tl.math.copysign({x}, {y})"
 
     @staticmethod
     def erfc(x):
-        return f"tl.libdevice.erfc({x})"
+        return f"tl.math.erfc({x})"
 
     @staticmethod
     def hypot(x, y):
-        return f"tl.libdevice.hypot({x}, {y})"
+        return f"tl.math.hypot({x}, {y})"
 
     @staticmethod
     def log10(x):
-        return f"tl.libdevice.log10({x})"
+        return f"tl.math.log10({x})"
 
     @staticmethod
     def nextafter(x, y):
-        return f"tl.libdevice.nextafter({x}, {y})"
+        return f"tl.math.nextafter({x}, {y})"
 
     @staticmethod
     def logical_and(a, b):
@@ -296,40 +294,39 @@ class TritonOverrides(OpOverrides):
 
     @staticmethod
     def rsqrt(x):
-        return f"tl.libdevice.rsqrt({x})"
+        return f"tl.math.rsqrt({x})"
 
     @staticmethod
     def log1p(x):
-        return f"tl.libdevice.log1p({x})"
+        return f"tl.math.log1p({x})"
 
     @staticmethod
     def tan(x):
-        return f"tl.libdevice.tan({x})"
+        return f"tl.math.tan({x})"
 
     @staticmethod
     def tanh(x):
-        return f"tl.libdevice.tanh({x})"
-
+        return f"tl.math.tanh({x})"
     @staticmethod
     def sigmoid(x):
         return f"tl.sigmoid({x})"
 
     @staticmethod
     def libdevice_sigmoid(x):
-        return f"1/(1 + tl.libdevice.exp(-({x})))"
+        return f"1/(1 + tl.math.exp(-({x})))"
 
     @staticmethod
     def signbit(x):
         # XX: This is wrong for the value -0.0 in floating point
-        return f"tl.libdevice.signbit({x}) if ({x}).dtype is tl.float32 else {x} < 0"
+        return f"tl.math.signbit({x}) if ({x}).dtype is tl.float32 else {x} < 0"
 
     @staticmethod
     def fmod(a, b):
-        return f"tl.libdevice.fmod({a}, {b})"
+        return f"tl.math.fmod({a}, {b})"
 
     @staticmethod
     def pow(a, b):
-        return f"tl.libdevice.pow({a}, {b})"
+        return f"tl.math.pow({a}, {b})"
 
     @staticmethod
     def log(x):
@@ -337,23 +334,23 @@ class TritonOverrides(OpOverrides):
 
     @staticmethod
     def libdevice_log(x):
-        return f"tl.libdevice.log({x})"
+        return f"tl.math.log({x})"
 
     @staticmethod
     def isinf(x):
-        return f"tl.libdevice.isinf({x})"
+        return f"tl.math.isinf({x})"
 
     @staticmethod
     def isnan(x):
-        return f"tl.libdevice.isnan({x})"
+        return f"tl.math.isnan({x})"
 
     @staticmethod
     def round(x):
-        return f"tl.libdevice.nearbyint({x})"
+        return f"tl.math.nearbyint({x})"
 
     @staticmethod
     def floor(x):
-        return f"tl.libdevice.floor({x})"
+        return f"tl.math.floor({x})"
 
     @staticmethod
     def floordiv(a, b):
@@ -366,7 +363,7 @@ class TritonOverrides(OpOverrides):
 
     @staticmethod
     def trunc(x):
-        return f"tl.libdevice.trunc({x})"
+        return f"tl.math.trunc({x})"
 
     @staticmethod
     def truncdiv(a, b):
@@ -376,7 +373,7 @@ class TritonOverrides(OpOverrides):
 
     @staticmethod
     def ceil(x):
-        return f"tl.libdevice.ceil({x})"
+        return f"tl.math.ceil({x})"
 
 
 @dataclasses.dataclass
