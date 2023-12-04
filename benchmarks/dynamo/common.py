@@ -3630,6 +3630,7 @@ def run(runner, args, original_dir=None):
 
             else:
                 model, example_inputs = runner.cast_based_on_args(model, example_inputs)
+            start_time = time.time()
             runner.run_one_model(
                 name,
                 model,
@@ -3639,6 +3640,8 @@ def run(runner, args, original_dir=None):
                 explain=args.explain,
                 tag=args.tag,
             )
+            end_time = time.time()
+            print(f"Time Cost: {model_name},{end_time-start_time}")
         if args.generate_aot_autograd_stats:
             stats_file = output_filename.split(".csv")[0] + "_stats.csv"
             output_csv(
