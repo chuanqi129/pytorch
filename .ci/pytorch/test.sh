@@ -664,6 +664,14 @@ test_libtorch_api() {
   fi
 }
 
+test_xpu(){
+  TEST_REPORTS_DIR=$(pwd)/test/test-reports
+  mkdir -p "$TEST_REPORTS_DIR"
+  source /opt/intel/oneapi/compiler/latest/env/vars.sh
+  xpu-smi discovery
+  build/bin/c10_xpu_XPUTest --gtest_output=xml:$TEST_REPORTS_DIR/c10_xpu_XPUTest.xml
+}
+
 test_aot_compilation() {
   echo "Testing Ahead of Time compilation"
   ln -sf "$TORCH_LIB_DIR"/libc10* "$TORCH_BIN_DIR"
@@ -1102,6 +1110,9 @@ elif [[ "${SHARD_NUMBER}" == 1 && $NUM_TEST_SHARDS -gt 1 ]]; then
   test_python_shard 1
   test_aten
   test_libtorch 1
+  if [[ "${BUILD_ENVIRONMENT}" == *xpu* ]]; then
+    test_xpu
+  fi
 elif [[ "${SHARD_NUMBER}" == 2 && $NUM_TEST_SHARDS -gt 1 ]]; then
   install_torchvision
   test_python_shard 2
@@ -1126,6 +1137,11 @@ elif [[ "${BUILD_ENVIRONMENT}" == *rocm* && -n "$TESTS_TO_INCLUDE" ]]; then
   install_torchvision
   test_python
   test_aten
+elif [[ "${BUILD_ENVIRONMENT}" == *xpu* ]]; then
+  #install_torchvision
+  #test_python
+  #test_aten
+  test_xpu
 else
   install_torchvision
   install_monkeytype
