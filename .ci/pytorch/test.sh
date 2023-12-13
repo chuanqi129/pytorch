@@ -1122,6 +1122,10 @@ elif [[ "${BUILD_ENVIRONMENT}" == *rocm* && -n "$TESTS_TO_INCLUDE" ]]; then
   install_torchvision
   test_python
   test_aten
+elif [[ "${BUILD_ENVIRONMENT}" == *xpu* && -n "$TESTS_TO_INCLUDE" ]]; then
+  install_torchvision
+  test_python
+  test_aten
 else
   install_torchvision
   install_monkeytype

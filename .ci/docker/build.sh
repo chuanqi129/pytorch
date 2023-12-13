@@ -71,6 +71,8 @@ if [[ "$image" == *cuda* && "$UBUNTU_VERSION" != "22.04" ]]; then
   DOCKERFILE="${OS}-cuda/Dockerfile"
 elif [[ "$image" == *rocm* ]]; then
   DOCKERFILE="${OS}-rocm/Dockerfile"
+elif [[ "$image" == *xpu* ]]; then
+  DOCKERFILE="${OS}-xpu/Dockerfile"
 elif [[ "$image" == *cuda*linter* ]]; then
   # Use a separate Dockerfile for linter to keep a small image size
   DOCKERFILE="linter-cuda/Dockerfile"
@@ -217,6 +219,16 @@ case "$image" in
     NINJA_VERSION=1.9.0
     CONDA_CMAKE=yes
     TRITON=yes
+    ;;
+  pytorch-linux-jammy-xpu-n-py3)
+    ANACONDA_PYTHON_VERSION=3.8
+    GCC_VERSION=11
+    PROTOBUF=yes
+    DB=yes
+    VISION=yes
+    KATEX=yes
+    CONDA_CMAKE=yes
+    DOCS=yes
     ;;
     pytorch-linux-jammy-py3.8-gcc11-inductor-benchmarks)
     ANACONDA_PYTHON_VERSION=3.8
