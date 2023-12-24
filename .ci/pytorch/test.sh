@@ -519,6 +519,22 @@ test_inductor_torchbench_smoketest_perf() {
   done
 }
 
+test_inductor_torchbench_cpu_smoketest_perf(){
+  TEST_REPORTS_DIR=$(pwd)/test/test-reports-cpu
+  mkdir -p "$TEST_REPORTS_DIR"
+
+  #Jemalloc config
+  export LD_PRELOAD=${CONDA_PREFIX:-"$(dirname $(which conda))/../"}/lib/libjemalloc.so
+  export MALLOC_CONF="oversize_threshold:1,background_thread:true,metadata_thp:auto,dirty_decay_ms:-1,muzzy_decay_ms:-1"
+
+  #multi_threads_test, resnet50 as example with pytorch launcher
+  python -m torch.backends.xeon.run_cpu --enable-jemalloc --node_id 0 benchmarks/dynamo/torchbench.py --performance \
+    --float32 -dcpu -n50 --only resnet50 --inference --freezing --timeout 9000 --backend=inductor \
+    --output "$TEST_REPORTS_DIR/inductor_inference_smoketest_cpu.csv"
+  # The threshold value needs to be actively maintained to make this check useful, not sure the threshold
+  python benchmarks/dynamo/check_perf_csv.py -f "$TEST_REPORTS_DIR/inductor_inference_smoketest_cpu.csv" -t 1.4
+}
+
 test_python_gloo_with_tls() {
   source "$(dirname "${BASH_SOURCE[0]}")/run_glootls_test.sh"
   assert_git_not_dirty
@@ -1076,6 +1092,9 @@ elif [[ "${TEST_CONFIG}" == *torchbench* ]]; then
   if [[ "${TEST_CONFIG}" == *inductor_torchbench_smoketest_perf* ]]; then
     checkout_install_torchbench hf_Bert hf_Albert nanogpt timm_vision_transformer
     PYTHONPATH=$(pwd)/torchbench test_inductor_torchbench_smoketest_perf
+  elif [[ "${TEST_CONFIG}" == *inductor_torchbench_cpu_smoketest_perf* ]]; then
+    checkout_install_torchbench resnet50
+    PYTHONPATH=$(pwd)/torchbench test_inductor_torchbench_cpu_smoketest_perf
   else
     checkout_install_torchbench
     # Do this after checkout_install_torchbench to ensure we clobber any
