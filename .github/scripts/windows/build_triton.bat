@@ -1,6 +1,11 @@
 @echo on
 
-powershell .github/scripts/windows/install_win10_sdk.ps1
+@REM powershell .github/scripts/windows/install_win10_sdk.ps1
+@REM set INSTALL_WINDOWS_SDK=1
+@REM set VC_VERSION=17.13.2
+@REM set VC_UNINSTALL_PREVIOUS=1
+@REM powershell .github/scripts/windows/install_vs.ps1
+@REM powershell .ci/pytorch/windows/internal/vs2022_install.ps1
 
 set PYTHON_PREFIX=%PY_VERS:.=%
 set PYTHON_PREFIX=py%PYTHON_PREFIX:;=;py%
@@ -12,6 +17,10 @@ if "%PY_VERS%" == "3.13t" (
     call conda create -n %PYTHON_PREFIX% -y -c=conda-forge python=%PY_VERS%
 )
 call conda run -n %PYTHON_PREFIX% pip install wheel pybind11 certifi cython cmake setuptools ninja
+
+dir "%ProgramFiles(x86)%\Microsoft Visual Studio"
+echo "AAAAAAAAAAA"
+dir "%ProgramFiles(x86)%\Microsoft Visual Studio\%VC_YEAR%\BuildTools"
 
 if not exist "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" (
     echo Visual Studio %VC_YEAR% C++ BuildTools is required to compile PyTorch on Windows
@@ -41,8 +50,8 @@ IF "%VS15VCVARSALL%"=="" (
     echo Visual Studio %VC_YEAR% C++ BuildTools is required to compile Triton on Windows
     exit /b 1
 )
-set MSSdk=1
-set DISTUTILS_USE_SDK=1
+@REM set MSSdk=1
+@REM set DISTUTILS_USE_SDK=1
 
 call "%VS15VCVARSALL%" x64
 call conda run -n %PYTHON_PREFIX% python .github/scripts/build_triton_wheel.py --device=%BUILD_DEVICE% %RELEASE%
