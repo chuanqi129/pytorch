@@ -1,6 +1,11 @@
 @echo on
 
 powershell .github/scripts/windows/install_win10_sdk.ps1
+set INSTALL_WINDOWS_SDK=1
+set VS_VERSION=17.13.2
+set VS_UNINSTALL_PREVIOUS=1
+powershell .github/scripts/windows/install_vs.ps1
+@REM powershell .ci/pytorch/windows/internal/vs2022_install.ps1
 
 set PYTHON_PREFIX=%PY_VERS:.=%
 set PYTHON_PREFIX=py%PYTHON_PREFIX:;=;py%
