@@ -1,5 +1,7 @@
 @echo on
 
+powershell .github/scripts/windows/install_win10_sdk.ps1
+
 set PYTHON_PREFIX=%PY_VERS:.=%
 set PYTHON_PREFIX=py%PYTHON_PREFIX:;=;py%
 call .ci/pytorch/win-test-helpers/installation-helpers/activate_miniconda3.bat
