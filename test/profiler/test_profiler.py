@@ -2008,10 +2008,6 @@ assert KinetoStepTracker.current_step() == initial_step + 2 * niters
                 report = json.load(f)
                 self._validate_basic_json(report["traceEvents"], device)
 
-    @unittest.skipIf(
-        torch.xpu.is_available(),
-        "XPU Trace event ends too late! Refer https://github.com/intel/torch-xpu-ops/issues/2263",
-    )
     @unittest.skipIf(not kineto_available(), "Kineto is required")
     @skipIfTorchDynamo("profiler gets ignored if dynamo activated")
     def test_basic_chrome_trace(self):
