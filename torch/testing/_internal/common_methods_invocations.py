@@ -12742,7 +12742,6 @@ op_db: list[OpInfo] = [
            # Runs very slowly on slow gradcheck - alternatively reduce input sizes
            dtypesIfHpu=custom_types(torch.float32, torch.bfloat16),
            dtypesIfXPU=floating_and_complex_types_and(torch.float16, torch.uint8, torch.int8, torch.bfloat16),
-           backward_dtypesIfXPU=floating_and_complex_types_and(torch.float16, torch.bfloat16),
            gradcheck_fast_mode=True,
            supports_forward_ad=True,
            supports_fwgrad_bwgrad=True,
