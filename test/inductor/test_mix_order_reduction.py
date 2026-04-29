@@ -1118,6 +1118,10 @@ class OverFusionTest(TestBase):
         Uses the exact model pattern from #179423: GQA attention with QK-norm
         and squared leaky-relu MLP. The QK-norm creates extra intermediate
         buffers in the backward pass that push read counts above the threshold.
+
+        The rejection check is verified using a deterministic synthetic function
+        with >10 explicit reads to ensure consistent behaviour across backends
+        (CUDA, XPU) whose backward graphs may differ in structure.
         """
         if not HAS_GPU:
             self.skipTest("requires GPU")
@@ -1186,8 +1190,31 @@ class OverFusionTest(TestBase):
 
         self.assertTrue(same(grad_ref, grad_act, tol=5e-2))
 
-        # max_reads should limit over-fusion, not disable mix_order entirely
+        # max_reads should not disable mix_order entirely
         self.assertGreater(metrics.codegen_mix_order_reduction, 0)
+
+        # Verify the max_reads guard rejects over-fusion using a deterministic
+        # synthetic function with >10 reads.  This is independent of the
+        # backward-graph structure produced by each GPU backend, which may vary.
+        metrics.reset()
+        M, N = 32768, 768
+
+        def f_many_reads(x, a, b, c, d, e, f, g, h, i, j, k):
+            # inner reduction along dim=-1: shape [M, N] -> [M], reads only x.
+            inner = x.sum(dim=-1)
+            # outer reduction along dim=0: shape [M, N] -> [N], reads only x.
+            # inner + outer form a mix-order pair (accepted).
+            outer = x.sum(dim=0)
+            # pointwise consuming inner's output plus 11 extra [M] buffers.
+            # When the scheduler tries to fuse this into FusedMixOrderReductions,
+            # all_reads = {x, inner_out, a..k} = 13 > max_reads=10 → rejected.
+            result = inner + a + b + c + d + e + f + g + h + i + j + k
+            return result, outer
+
+        x2 = torch.randn(M, N, device=GPU_TYPE)
+        extras = [torch.randn(M, device=GPU_TYPE) for _ in range(11)]
+
+        torch.compile(f_many_reads)(x2, *extras)
         self.assertGreater(metrics.rejected_mix_order_reduction_fusion, 0)
 
 
