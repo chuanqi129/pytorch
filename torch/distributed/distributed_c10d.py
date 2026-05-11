@@ -1523,6 +1523,13 @@ def _get_process_group_uid(pg: ProcessGroup) -> int:
         pass
     if is_nccl_available() and isinstance(backend, ProcessGroupNCCL):
         return backend.uid
+    backend = None
+    try:
+        backend = pg._get_backend(torch.device("xpu"))
+    except RuntimeError:
+        pass
+    if is_xccl_available() and isinstance(backend, ProcessGroupXCCL):
+        return backend.uid
     return -1
 
 

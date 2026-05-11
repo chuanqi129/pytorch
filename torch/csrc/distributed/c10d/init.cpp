@@ -3701,6 +3701,10 @@ Example::
               py::arg("size"),
               R"(Create a new ProcessGroupXCCL instance.)")
           .def_property_readonly(
+              "uid",
+              &::c10d::ProcessGroupXCCL::getUid,
+              R"(Return the uid.)")
+          .def_property_readonly(
               "options",
               &::c10d::ProcessGroupXCCL::getOptions,
               R"(Return the options used to create this ProcessGroupXCCL instance.)");
