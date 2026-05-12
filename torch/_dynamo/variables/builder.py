@@ -3545,16 +3545,20 @@ def handle_traced_output(
         set_example_value(proxy.node, example_value)
         return SymNodeVariable.create(tx, proxy, example_value, **options)
     elif (
-        isinstance(example_value, torch.Stream)
+        any(
+            isinstance(example_value, iface.Stream)
+            for _, iface in get_registered_device_interfaces()
+        )
         and proxy.node.target is get_external_object_by_index
     ) or proxy.node.target in [
         device_interface.current_stream
         for _, device_interface in get_registered_device_interfaces()
     ]:
         set_example_value(proxy.node, example_value)
-        index = None
         if proxy.node.target is get_external_object_by_index:
             index = proxy.node.args[0]
+        else:
+            index = CURRENT_STREAM_INDEX
         # type: ignore[arg-type]
         return StreamVariable(proxy, example_value, index, **options)
     elif (
