@@ -772,6 +772,14 @@ class GenericDeviceVariable(ContextWrappingVariable):
     def create(
         cls, tx: "InstructionTranslator", device: Any, **kwargs: Any
     ) -> "GenericDeviceVariable":
+        if isinstance(device, VariableTracker):
+            # Non-constant (e.g., symbolic tensor index): store the variable
+            # tracker so we can use its proxy when building the FX graph.
+            return cls(
+                target_values=[device],
+                initial_values=None,
+                **kwargs,
+            )
         return cls(
             target_values=[cls._get_device_index_fn(device, optional=True)],
             initial_values=None,
@@ -791,14 +799,29 @@ class GenericDeviceVariable(ContextWrappingVariable):
         return variables.ConstantVariable.create(False)
 
     def enter(self, tx: "InstructionTranslator") -> VariableTracker:
-        prev_idx = self._exchange_fn(*self.target_values)
-        self.set_cleanup_hook(tx, lambda: self._maybe_exchange_fn(prev_idx))
-        self.proxy = tx.output.create_node(
-            "call_function",
-            self._exchange_fn,
-            (*self.target_values,),
-            {},
-        )
+        [target] = self.target_values
+        if isinstance(target, VariableTracker):
+            # Dynamic (non-constant) device index: use proxy for FX graph and
+            # use -1 as a placeholder for the eager-mode call so that
+            # _exchange_device is a no-op at trace time.
+            target_proxy = target.as_proxy()
+            prev_idx = self._exchange_fn(-1)
+            self.set_cleanup_hook(tx, lambda: self._maybe_exchange_fn(prev_idx))
+            self.proxy = tx.output.create_node(
+                "call_function",
+                self._exchange_fn,
+                (target_proxy,),
+                {},
+            )
+        else:
+            prev_idx = self._exchange_fn(target)
+            self.set_cleanup_hook(tx, lambda: self._maybe_exchange_fn(prev_idx))
+            self.proxy = tx.output.create_node(
+                "call_function",
+                self._exchange_fn,
+                (target,),
+                {},
+            )
         return variables.ConstantVariable.create(None)
 
     def module_name(self) -> str:

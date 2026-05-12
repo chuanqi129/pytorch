@@ -1173,12 +1173,7 @@ class UserDefinedClassVariable(UserDefinedVariable):
             and len(args) == 1
             and (variable_cls := get_device_context_manager(self.value)) is not None
         ):
-            if not args[0].is_python_constant():
-                raise_type_error(
-                    tx,
-                    f"{self.value.__module__}.{self.value.__qualname__} requires a constant argument",
-                )
-            return variable_cls.create(tx, args[0].as_python_constant())
+            return variable_cls.create(tx, args[0])
         elif (
             issubclass(type(self.value), type)
             and hasattr(
