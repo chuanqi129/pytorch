@@ -985,11 +985,19 @@ class Module:
                     )
                     torch.utils.swap_tensors(param, param_applied)
                 except Exception as e:
-                    if param_grad is not None:
-                        param.grad = param_grad
-                    raise RuntimeError(
-                        f"_apply(): Couldn't swap {self._get_name()}.{key}"
-                    ) from e
+                    if isinstance(param, FakeTensor):
+                        # FakeTensors may have weakrefs (from dispatch cache
+                        # eviction finalizers) that prevent swap_tensors.
+                        # Fall back to set_data which is safe for FakeTensors.
+                        if param_grad is not None:
+                            param.grad = param_grad
+                        param.data = param_applied
+                    else:
+                        if param_grad is not None:
+                            param.grad = param_grad
+                        raise RuntimeError(
+                            f"_apply(): Couldn't swap {self._get_name()}.{key}"
+                        ) from e
                 out_param = param
             elif p_should_use_set_data:
                 param.data = param_applied
