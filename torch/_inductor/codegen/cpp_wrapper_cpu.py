@@ -546,19 +546,27 @@ class CppWrapperCpu(PythonWrapperCodegen):
         if config.aot_inductor.custom_ops_to_c_shims:
             # custom_ops_to_c_shims contains declaration of custom ops with C shim.
             # TODO: this could be auto-generated from a passed-in custom op schema
-            custom_c_shims = list(
-                chain(*config.aot_inductor.custom_ops_to_c_shims.values())
-            )
-            declarations = "\n".join(
-                [f"extern {textwrap.dedent(shim)};" for shim in custom_c_shims]
-            )
-            self.prefix.splice(
-                f"""
-                extern "C" {{
-                    {declarations}
-                }}
-                """
-            )
+            # Filter shims to only include those for the current device and CPU,
+            # to avoid compile errors from declarations for unavailable devices.
+            custom_c_shims = [
+                shim
+                for shim in chain(
+                    *config.aot_inductor.custom_ops_to_c_shims.values()
+                )
+                if f"aoti_torch_{self.device}_" in shim
+                or "aoti_torch_cpu_" in shim
+            ]
+            if custom_c_shims:
+                declarations = "\n".join(
+                    [f"extern {textwrap.dedent(shim)};" for shim in custom_c_shims]
+                )
+                self.prefix.splice(
+                    f"""
+                    extern "C" {{
+                        {declarations}
+                    }}
+                    """
+                )
         if V.graph.aot_mode:
             self.prefix.writeline("namespace torch::aot_inductor {")
         if not V.graph.is_const_graph:
