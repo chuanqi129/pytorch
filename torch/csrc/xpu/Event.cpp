@@ -45,6 +45,9 @@ static PyObject* THXPEvent_pynew(
 }
 
 static void THXPEvent_dealloc(THXPEvent* self) {
+  if (self->weakreflist != nullptr) {
+    PyObject_ClearWeakRefs((PyObject*)self);
+  }
   {
     pybind11::gil_scoped_release no_gil{};
     self->xpu_event.~XPUEvent();
@@ -168,7 +171,7 @@ static PyTypeObject THXPEventType = {
     nullptr, /* tp_traverse */
     nullptr, /* tp_clear */
     nullptr, /* tp_richcompare */
-    0, /* tp_weaklistoffset */
+    offsetof(THXPEvent, weakreflist), /* tp_weaklistoffset */
     nullptr, /* tp_iter */
     nullptr, /* tp_iternext */
     THXPEvent_methods, /* tp_methods */
