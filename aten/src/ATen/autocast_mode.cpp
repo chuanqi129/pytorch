@@ -586,6 +586,12 @@ TORCH_LIBRARY_IMPL(aten, AutocastXPU, m) {
 
   AT_FORALL_PROMOTE(_KERNEL_XPU_PROMOTE)
 
+  KERNEL_XPU(pinverse, fp32)
+  KERNEL_XPU(linalg_pinv, atol_rtol_tensor, fp32)
+  KERNEL_XPU(linalg_pinv, atol_rtol_float, fp32)
+  KERNEL_XPU(linalg_pinv, fp32)
+  KERNEL_XPU(linalg_pinv, rcond_tensor, fp32)
+
   m.impl(TORCH_SELECTIVE_NAME("aten::binary_cross_entropy"),
          TORCH_FN((&at::autocast::binary_cross_entropy_banned)));
 }
