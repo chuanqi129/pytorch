@@ -2197,6 +2197,17 @@ class CUDARngStateHelper:
     def get_torch_state_as_tuple(
         fake_mode: AbstractContextManager[Any] = nullcontext(),
     ):
+        # Try the current accelerator; fall back to CUDA for backward compat
+        device_type = None
+        if hasattr(torch, "accelerator") and torch.accelerator.is_available():
+            device_type = torch.accelerator.current_accelerator().type
+
+        if device_type == "xpu":
+            with fake_mode:
+                seed = torch.tensor(torch.xpu.initial_seed())
+                offset = torch.tensor(torch.xpu._get_rng_state_offset())
+                return seed, offset
+
         if not torch.cuda.is_available():
             raise RuntimeError("CUDA not available")
 
@@ -2215,4 +2226,11 @@ class CUDARngStateHelper:
 
     @staticmethod
     def set_new_offset(relative_offset):
-        torch.cuda._set_rng_state_offset(relative_offset.item())
+        device_type = None
+        if hasattr(torch, "accelerator") and torch.accelerator.is_available():
+            device_type = torch.accelerator.current_accelerator().type
+
+        if device_type == "xpu":
+            torch.xpu._set_rng_state_offset(relative_offset.item())
+        else:
+            torch.cuda._set_rng_state_offset(relative_offset.item())

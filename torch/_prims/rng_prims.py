@@ -7,6 +7,7 @@ from torch import _prims
 from torch._C import DispatchKey
 from torch._higher_order_ops.utils import autograd_not_implemented
 from torch._ops import HigherOrderOperator
+from torch._decomp.decompositions_for_rng import _supports_philox_functionalization
 from torch._prims_common import CUDARngStateHelper, make_contiguous_strides_for
 from torch._subclasses.fake_tensor import FakeTensorMode
 from torch.fx.experimental.proxy_tensor import (
@@ -56,6 +57,7 @@ def philox_rand_offset_meta(
 
 def philox_rand_offset(
     shape: torch.Size,
+    device: torch.device | None = None,
 ):
     # For impl, look at the function calc_execution_policy in the file
     # aten/src/ATen/native/cuda/DistributionTemplates.h. The impl was copied at
@@ -68,11 +70,26 @@ def philox_rand_offset(
     block_size = 256
     unroll = 4
     curand4_engine_calls = 4
-    device_property = torch.cuda.get_device_properties(torch.cuda.current_device())
-    blocks_per_sm = device_property.max_threads_per_multi_processor // block_size
+
+    if device is not None and device.type == "xpu":
+        # Conservative estimate for XPU: use max_compute_units and max_work_group_size
+        device_property = torch.xpu.get_device_properties(
+            device.index if device.index is not None else torch.xpu.current_device()
+        )
+        block_size = min(256, device_property.max_work_group_size)
+        sm_count = device_property.max_compute_units
+        blocks_per_sm = device_property.max_work_group_size // block_size
+        blocks_per_sm = max(blocks_per_sm, 1)
+    else:
+        device_property = torch.cuda.get_device_properties(
+            torch.cuda.current_device()
+        )
+        sm_count = device_property.multi_processor_count
+        blocks_per_sm = device_property.max_threads_per_multi_processor // block_size
+
     num = cast(int, numel)
     grid_size = (num + block_size - 1) // block_size
-    grid_size = min(grid_size, device_property.multi_processor_count * blocks_per_sm)
+    grid_size = min(grid_size, sm_count * blocks_per_sm)
     return ((num - 1) // (block_size * grid_size * unroll) + 1) * curand4_engine_calls
 
 
@@ -114,14 +131,21 @@ def register_philox_rand():
         else:
             devices = [device]
 
-        if device.type != "cuda":
+        if not _supports_philox_functionalization(device):
             raise throw_on_non_cuda(device)
 
-        with torch.random.fork_rng(devices):
-            CUDARngStateHelper.set_torch_state_tensor(seed, offset)
+        with torch.random.fork_rng(devices, device_type=device.type):
+            if device.type == "xpu":
+                # XPU uses same seed/offset RNG state format
+                seed_portion = seed.reshape([1]).view(torch.uint8)
+                offset_portion = offset.reshape([1]).view(torch.uint8)
+                new_state = torch.cat([seed_portion, offset_portion])
+                torch.xpu.set_rng_state(new_state)
+            else:
+                CUDARngStateHelper.set_torch_state_tensor(seed, offset)
             random_values = torch.rand(shape, device=device, dtype=dtype)
 
-        return random_values, philox_rand_offset(shape)
+        return random_values, philox_rand_offset(shape, device)
 
     register_rng_prim(
         name=name,
