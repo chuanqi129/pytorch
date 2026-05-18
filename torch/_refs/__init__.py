@@ -5605,7 +5605,10 @@ def logspace(
         pin_memory=pin_memory,
         requires_grad=requires_grad,
     )
-    return _maybe_convert_to_dtype(torch.pow(base, ret), dtype)  # type: ignore[arg-type,return-value]
+    result = torch.pow(base, ret)
+    if utils.is_integer_dtype(dtype):
+        result = torch.round(result)
+    return _maybe_convert_to_dtype(result, dtype)  # type: ignore[arg-type,return-value]
 
 
 @overload
