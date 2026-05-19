@@ -2032,6 +2032,7 @@ class CudaReproTests(TestCase):
                 ".run(", 1, exactly=True
             ).run(code[0])
 
+    @skipIfXpu(msg="InductorError during Triton compilation - torch-xpu-ops: #2554")
     @config.patch("triton.use_block_ptr", True)
     def test_selecsls42b_misaligned_address(self):
         # https://github.com/triton-lang/triton/issues/2836
