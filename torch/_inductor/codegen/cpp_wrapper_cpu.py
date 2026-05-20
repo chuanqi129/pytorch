@@ -2050,9 +2050,6 @@ class CppWrapperCpu(PythonWrapperCodegen):
     def codegen_exact_buffer_reuse(self, old_name: str, new_name: str, del_line: str):
         return f"auto {new_name} = std::move({old_name});  // reuse"
 
-    def generate_debug_sync(self, buffer):
-        pass
-
     def generate_profiler_mark_wrapper_call(self, stack):
         self.wrapper_call.writeline(
             'RAIIAtenRecordFunctionHandle record_inductor_wrapper_call_("inductor_wrapper_call", nullptr);'
@@ -2080,21 +2077,16 @@ class CppWrapperCpu(PythonWrapperCodegen):
                 f'AOTI_TORCH_ERROR_CODE_CHECK(aoti_torch_check_inf_and_nan("{name}", {name}));'
             )
 
-    def _codegen_assert_size_stride(
-        self,
-        code: IndentedBuffer,
-        name: str,
-        size: str,
-        stride: str,
-        op_name: str,
+    def write_assert_size_stride(
+        self, name: str, size: str, stride: str, op_name: str
     ) -> None:
-        if V.graph.aot_mode and V.graph.is_const_graph:
-            return
         stmt = f'assert_size_stride({name}, {size}, {stride}, "{op_name}");'
         if V.graph.aot_mode:
-            code.writeline(f"if (_check_aoti_runtime_check_inputs_env()) {{ {stmt} }}")
+            if V.graph.is_const_graph:
+                return
+            self.writeline(f"if (_check_aoti_runtime_check_inputs_env()) {{ {stmt} }}")
         else:
-            code.writeline(stmt)
+            self.writeline(stmt)
 
     def codegen_device(self, device):
         assert device.type in DEVICE_TO_ATEN, (
