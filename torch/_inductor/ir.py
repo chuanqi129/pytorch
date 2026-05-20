@@ -1593,11 +1593,8 @@ class Reduction(Loops):
                 index: Sequence[_IntLike], rindex: Sequence[_IntLike]
             ) -> tuple[OpsValue, OpsValue]:
                 rindex = [sympy.expand(i) for i in rindex]
-                value = inner_fn(index, rindex)
-                if isinstance(value, tuple):
-                    return value
                 return (
-                    value,
+                    inner_fn(index, rindex),
                     ops.index_expr(flatten_index(rindex), torch.int64),
                 )
 

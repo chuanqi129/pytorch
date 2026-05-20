@@ -986,7 +986,6 @@ def convolution_backward_lowering(
 
     stride = tuple(V.graph.sizevars.guard_int_seq(stride))
     padding = tuple(V.graph.sizevars.guard_int_seq(padding))
-    dilation = tuple(V.graph.sizevars.guard_int_seq(dilation))
 
     input.realize()
     weight.realize()

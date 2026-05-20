@@ -109,7 +109,6 @@ from .misc import NullVariable, StringFormatVariable
 from .object_protocol import (
     binary_iop,
     binary_op,
-    generic_abs,
     generic_bool,
     generic_float,
     generic_getiter,
@@ -1692,11 +1691,6 @@ class BuiltinVariable(BaseBuiltinVariable):
             # e.g., int.__pos__(4) → pos(4)
             return generic_pos(tx, args[0])
 
-        if name == "__abs__" and len(args) == 1 and not kwargs:
-            # type.__abs__(instance) → abs(instance)
-            # e.g., int.__abs__(-4) → abs(-4)
-            return generic_abs(tx, args[0])
-
         return super().call_method(tx, name, args, kwargs)
 
     def call_int(
@@ -2016,7 +2010,13 @@ class BuiltinVariable(BaseBuiltinVariable):
     def call_abs(
         self, tx: "InstructionTranslator", arg: VariableTracker
     ) -> VariableTracker:
-        return generic_abs(tx, arg)
+        from .builder import SourcelessBuilder
+
+        # Call arg.__abs__()
+        abs_method = SourcelessBuilder.create(tx, getattr).call_function(
+            tx, [arg, VariableTracker.build(tx, "__abs__")], {}
+        )
+        return abs_method.call_function(tx, [], {})
 
     def call_pos(
         self, tx: "InstructionTranslator", arg: VariableTracker
