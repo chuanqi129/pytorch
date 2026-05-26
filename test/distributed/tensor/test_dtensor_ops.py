@@ -5,7 +5,6 @@ import copy
 import random
 import re
 import threading
-import unittest
 import warnings
 
 import torch
@@ -33,7 +32,6 @@ from torch.testing._internal.common_methods_invocations import op_db
 from torch.testing._internal.common_ops_unbacked import ops_dde_xfail, ops_unbacked_skip
 from torch.testing._internal.common_utils import (
     freeze_rng_state,
-    IS_LINUX,
     np,
     run_tests,
     SEED,
@@ -681,9 +679,6 @@ class TestMultiThreadedDTensorOps(DTensorOpTestBase, TestDTensorOps):
     _op_db = repurpose_ops(op_db, "TestDTensorOps", "TestMultiThreadedDTensorOps")
     _op_db_sample_lock = threading.Lock()
 
-    @unittest.skipIf(IS_LINUX, "https://github.com/pytorch/pytorch/issues/167252")
-    @unittest.skipIf(IS_LINUX, "https://github.com/pytorch/pytorch/issues/179779")
-    @unittest.skipIf(IS_LINUX, "https://github.com/pytorch/pytorch/issues/180522")
     @suppress_warnings
     @ops(_op_db, allowed_dtypes=(torch.float,))
     @skipOps(
@@ -961,7 +956,6 @@ class TestUnbackedDTensorOps(TestDTensorOps):
                     ) from e
         return rs
 
-    @unittest.skipIf(IS_LINUX, "https://github.com/pytorch/pytorch/issues/179881")
     @suppress_warnings
     @ops(_op_db, allowed_dtypes=(torch.float,))
     @skipOps(
@@ -998,7 +992,6 @@ class TestSingleDimStrategies(DTensorOpTestBase):
 
         self.skipTest(f"Op {torch_op} failed to extract aten op")
 
-    @unittest.skipIf(IS_LINUX, "https://github.com/pytorch/pytorch/issues/184463")
     @suppress_warnings
     @ops(op_db, allowed_dtypes=(torch.float,))
     @skipOps(
@@ -1164,8 +1157,6 @@ class TestCompiledDTensorOps(TestDTensorOps):
             # Just run - if it compiles and runs without error, we pass
             compiled_func(*dtensor_args, **dtensor_kwargs)
 
-    @unittest.skipIf(IS_LINUX, "https://github.com/pytorch/pytorch/issues/181204")
-    @unittest.skipIf(IS_LINUX, "https://github.com/pytorch/pytorch/issues/176973")
     @suppress_warnings
     @ops(_op_db, allowed_dtypes=(torch.float,))
     @skipOps(
