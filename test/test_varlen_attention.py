@@ -26,7 +26,6 @@ from torch.testing._internal.common_utils import (
     parametrize,
     run_tests,
     setSdpaBackendsToDefaultFinally,
-    skipIfRocm,
     TEST_WITH_ROCM,
 )
 from torch.utils._python_dispatch import TorchDispatchMode
@@ -707,7 +706,6 @@ class TestVarlenAttention(NNTestCase):
 
             start_idx = end_idx
 
-    @skipIfRocm(msg="https://github.com/pytorch/pytorch/issues/179968")
     @unittest.skipIf(
         not PLATFORM_SUPPORTS_FLASH_ATTENTION, "Flash Attention not supported"
     )

@@ -1113,11 +1113,18 @@ def lp_pool3d(
             ceil_mode=ceil_mode,
         )
     kd, kw, kh = _triple(kernel_size)
+    if norm_type == float("inf"):
+        if stride is not None:
+            return max_pool3d(input.abs(), kernel_size, stride, 0, ceil_mode=ceil_mode)
+        else:
+            return max_pool3d(
+                input.abs(), kernel_size, padding=0, ceil_mode=ceil_mode
+            )
     if stride is not None:
-        out = avg_pool3d(input.pow(norm_type), kernel_size, stride, 0, ceil_mode)
+        out = avg_pool3d(input.abs().pow(norm_type), kernel_size, stride, 0, ceil_mode)
     else:
         out = avg_pool3d(
-            input.pow(norm_type), kernel_size, padding=0, ceil_mode=ceil_mode
+            input.abs().pow(norm_type), kernel_size, padding=0, ceil_mode=ceil_mode
         )
 
     return (
@@ -1154,11 +1161,18 @@ def lp_pool2d(
             ceil_mode=ceil_mode,
         )
     kw, kh = _pair(kernel_size)
+    if norm_type == float("inf"):
+        if stride is not None:
+            return max_pool2d(input.abs(), kernel_size, stride, 0, ceil_mode=ceil_mode)
+        else:
+            return max_pool2d(
+                input.abs(), kernel_size, padding=0, ceil_mode=ceil_mode
+            )
     if stride is not None:
-        out = avg_pool2d(input.pow(norm_type), kernel_size, stride, 0, ceil_mode)
+        out = avg_pool2d(input.abs().pow(norm_type), kernel_size, stride, 0, ceil_mode)
     else:
         out = avg_pool2d(
-            input.pow(norm_type), kernel_size, padding=0, ceil_mode=ceil_mode
+            input.abs().pow(norm_type), kernel_size, padding=0, ceil_mode=ceil_mode
         )
 
     return (torch.sign(out) * relu(torch.abs(out))).mul(kw * kh).pow(1.0 / norm_type)
@@ -1191,11 +1205,18 @@ def lp_pool1d(
             stride=stride,
             ceil_mode=ceil_mode,
         )
+    if norm_type == float("inf"):
+        if stride is not None:
+            return max_pool1d(input.abs(), kernel_size, stride, 0, ceil_mode=ceil_mode)
+        else:
+            return max_pool1d(
+                input.abs(), kernel_size, padding=0, ceil_mode=ceil_mode
+            )
     if stride is not None:
-        out = avg_pool1d(input.pow(norm_type), kernel_size, stride, 0, ceil_mode)
+        out = avg_pool1d(input.abs().pow(norm_type), kernel_size, stride, 0, ceil_mode)
     else:
         out = avg_pool1d(
-            input.pow(norm_type), kernel_size, padding=0, ceil_mode=ceil_mode
+            input.abs().pow(norm_type), kernel_size, padding=0, ceil_mode=ceil_mode
         )
 
     return (

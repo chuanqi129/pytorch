@@ -1305,12 +1305,10 @@ def expand(x, sizes):
         # this cannot be done directly as below as we'll choke on the size_hint
         # here
         if x_size_product > 0 and not free_unbacked_symbols(sizes):
-            # Broadcast loop reuse is not graph fanout; keep the graph-fanout
-            # read-count heuristic from materializing cheap expanded producers.
+            # maybe realize input before broadcasting it
             x.mark_reuse(
                 V.graph.sizevars.guarding_hint_or_throw(sympy_product(sizes))
-                // x_size_product,
-                graph_reuse=False,
+                // x_size_product
             )
     return TensorBox(ExpandView.create(x.data, tuple(sizes)))
 
@@ -1496,10 +1494,10 @@ def slice_(x, dim=0, start=0, end=sys.maxsize, step=1, clamp=True):
             return 0
         elif fn(sympy.Ge(index, 0)):
             # If index >= 0, the resolved index is at most min(index, size).
-            return Min(index, size)
+            return sympy.Min(index, size)
         elif fn(sympy.Lt(index, 0)):
             # If index < 0, wrap and clamp: the resolved index is at least 0.
-            return Max(index + size, 0)
+            return sympy.Max(index + size, 0)
         return None
 
     start_index, end_index = None, None
@@ -2901,15 +2899,9 @@ def inductor_random(
     else:
 
         def inner_fn(index):
-            random_index = ops.index_expr(random_pos(index), torch.int32)
-            if device.type == "cuda":
-                return getattr(ops, f"{mode}4x")(
-                    seed_loader([]),
-                    random_index,
-                )
             return getattr(ops, mode)(
                 seed_loader([]),
-                random_index,
+                ops.index_expr(random_pos(index), torch.int32),
             )
 
     result = Pointwise.create(
@@ -6896,7 +6888,7 @@ def var_mean_sum_(x, axis, correction, keepdim, return_mean):
 
     denom = sympy_product(size[i] for i in axis)
     if correction:
-        denom = Max(denom - correction, 0)
+        denom = sympy.Max(denom - correction, 0)
     denom = ir.IndexingConstant(index=denom, dtype=x.get_dtype(), device=x.get_device())
     denom = ExpandView.create(denom, list(sum_result.get_size()))
     x_var = div(sum_result, denom)
