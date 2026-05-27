@@ -2221,13 +2221,26 @@ def gumbel_softmax(
     if eps != 1e-10:
         warnings.warn("`eps` parameter is deprecated and has no effect.", stacklevel=2)
 
+    if tau < 0:
+        raise ValueError(f"tau must be non-negative, got {tau}")
+
     gumbels = (
         -torch.empty_like(logits, memory_format=torch.legacy_contiguous_format)
         .exponential_()
         .log()
     )  # ~Gumbel(0,1)
-    gumbels = (logits + gumbels) / tau  # ~Gumbel(logits,tau)
-    y_soft = gumbels.softmax(dim)
+    if tau == 0:
+        # Zero-temperature limit: soft distribution collapses to a one-hot
+        # argmax of (logits + gumbel_noise). Computing (logits + gumbels) / 0
+        # would produce inf/nan; instead return the well-defined limit.
+        perturbed = logits + gumbels
+        index = perturbed.max(dim, keepdim=True)[1]
+        y_soft = torch.zeros_like(
+            logits, memory_format=torch.legacy_contiguous_format
+        ).scatter_(dim, index, 1.0)
+    else:
+        gumbels = (logits + gumbels) / tau  # ~Gumbel(logits,tau)
+        y_soft = gumbels.softmax(dim)
 
     if hard:
         # Straight through.
