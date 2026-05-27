@@ -1665,8 +1665,21 @@ def _addmm_activation(
 
 @register_decomposition(aten.addmv)
 @out_wrapper(exact_dtype=True)
-@pw_cast_for_opmath
 def addmv(self: Tensor, mat1: Tensor, vec: Tensor, beta: int = 1, alpha: int = 1):
+    torch._check(
+        self.dtype == mat1.dtype and mat1.dtype == vec.dtype,
+        lambda: (
+            f"addmv input tensors must have the same dtype, but got "
+            f"{self.dtype}, {mat1.dtype}, and {vec.dtype}"
+        ),
+    )
+    return _addmv_impl(self, mat1, vec, beta, alpha)
+
+
+@pw_cast_for_opmath
+def _addmv_impl(
+    self: Tensor, mat1: Tensor, vec: Tensor, beta: int = 1, alpha: int = 1
+):
     if not self.is_floating_point() and not self.is_complex():
         beta = int(beta)
         alpha = int(alpha)
