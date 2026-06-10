@@ -598,21 +598,48 @@ def register_onednn_fusion_ops():
                 x_scale = V.graph.add_tensor_constant(
                     torch.tensor(x_scale, dtype=torch.float32), name="x_scale"
                 )
+            else:
+                x_scale_size = x_scale.get_size()
+                if len(x_scale_size) == 0 or all(dim == 1 for dim in x_scale_size):
+                    x_scale = _convert_to_0d_constant(x_scale, torch.float32, "_0d")
+                else:
+                    x_scale.realize()
+                assert len(x_scale.get_size()) in [0, 1], "x_scale must be 0D or 1D"
 
             if x_zp is None:
                 x_zp = V.graph.add_tensor_constant(
                     torch.tensor(0, dtype=torch.int32), name="x_zp"
                 )
-            if not isinstance(x_zp, ir.TensorBox):
+            elif not isinstance(x_zp, ir.TensorBox):
                 assert type(x_zp) is int
                 x_zp = V.graph.add_tensor_constant(
                     torch.tensor(x_zp, dtype=torch.int32), name="x_zp"
                 )
+            else:
+                x_zp_size = x_zp.get_size()
+                if len(x_zp_size) == 0 or all(dim == 1 for dim in x_zp_size):
+                    x_zp = _convert_to_0d_constant(x_zp, torch.int32, "_0d")
+                else:
+                    x_zp.realize()
 
             if w_zp is None:
                 w_zp = V.graph.add_tensor_constant(
                     torch.tensor(0, dtype=torch.int32), name="w_zp"
                 )
+            w_scale.realize()
+            w_zp.realize()
+            if w_zp.get_dtype() != torch.int32:
+                if isinstance(
+                    ir.InputsKernel.unwrap_storage_for_input(w_zp),
+                    ir.ConstantBuffer,
+                ):
+                    w_zp_tensor = V.graph.constants[w_zp.get_name()].to(torch.int32)
+                    w_zp = V.graph.add_tensor_constant(
+                        torch.tensor(w_zp_tensor, dtype=torch.int32),
+                        name=w_zp.get_name(),
+                    )
+                else:
+                    w_zp = to_dtype(w_zp, torch.int32)
 
             return TensorBox.create(
                 mkldnn_ir.QConvPointWisePT2E.create(
@@ -671,21 +698,48 @@ def register_onednn_fusion_ops():
                 x_scale = V.graph.add_tensor_constant(
                     torch.tensor(x_scale, dtype=torch.float32), name="x_scale"
                 )
+            else:
+                x_scale_size = x_scale.get_size()
+                if len(x_scale_size) == 0 or all(dim == 1 for dim in x_scale_size):
+                    x_scale = _convert_to_0d_constant(x_scale, torch.float32, "_0d")
+                else:
+                    x_scale.realize()
+                assert len(x_scale.get_size()) in [0, 1], "x_scale must be 0D or 1D"
 
             if x_zp is None:
                 x_zp = V.graph.add_tensor_constant(
                     torch.tensor(0, dtype=torch.int32), name="x_zp"
                 )
-            if not isinstance(x_zp, ir.TensorBox):
+            elif not isinstance(x_zp, ir.TensorBox):
                 assert type(x_zp) is int
                 x_zp = V.graph.add_tensor_constant(
                     torch.tensor(x_zp, dtype=torch.int32), name="x_zp"
                 )
+            else:
+                x_zp_size = x_zp.get_size()
+                if len(x_zp_size) == 0 or all(dim == 1 for dim in x_zp_size):
+                    x_zp = _convert_to_0d_constant(x_zp, torch.int32, "_0d")
+                else:
+                    x_zp.realize()
 
             if w_zp is None:
                 w_zp = V.graph.add_tensor_constant(
                     torch.tensor(0, dtype=torch.int32), name="w_zp"
                 )
+            w_scale.realize()
+            w_zp.realize()
+            if w_zp.get_dtype() != torch.int32:
+                if isinstance(
+                    ir.InputsKernel.unwrap_storage_for_input(w_zp),
+                    ir.ConstantBuffer,
+                ):
+                    w_zp_tensor = V.graph.constants[w_zp.get_name()].to(torch.int32)
+                    w_zp = V.graph.add_tensor_constant(
+                        torch.tensor(w_zp_tensor, dtype=torch.int32),
+                        name=w_zp.get_name(),
+                    )
+                else:
+                    w_zp = to_dtype(w_zp, torch.int32)
 
             if (
                 binary_attr == "sum"
@@ -795,15 +849,19 @@ def register_onednn_fusion_ops():
                 )
             w_scale.realize()
             w_zp.realize()
-            if w_zp.get_dtype() != torch.int32 and isinstance(
-                ir.InputsKernel.unwrap_storage_for_input(w_zp),
-                ir.ConstantBuffer,
-            ):
-                # W_zp might be a ConstantBuffer with int64, convert it to int32
-                w_zp_tensor = V.graph.constants[w_zp.get_name()].to(torch.int32)
-                w_zp = V.graph.add_tensor_constant(  # type: ignore[assignment]
-                    torch.tensor(w_zp_tensor, dtype=torch.int32), name=w_zp.get_name()
-                )
+            if w_zp.get_dtype() != torch.int32:
+                if isinstance(
+                    ir.InputsKernel.unwrap_storage_for_input(w_zp),
+                    ir.ConstantBuffer,
+                ):
+                    # W_zp might be a ConstantBuffer with int64, convert it to int32
+                    w_zp_tensor = V.graph.constants[w_zp.get_name()].to(torch.int32)
+                    w_zp = V.graph.add_tensor_constant(  # type: ignore[assignment]
+                        torch.tensor(w_zp_tensor, dtype=torch.int32),
+                        name=w_zp.get_name(),
+                    )
+                else:
+                    w_zp = to_dtype(w_zp, torch.int32)
 
             bias_dtype = None if bias is None else bias.get_dtype()
             choices: list[ChoiceCaller] = []
@@ -1102,14 +1160,18 @@ def register_onednn_fusion_ops():
             # https://github.com/pytorch/pytorch/blob/f353d17755ed23b02924c962a86ff99a3405fe10/torch/_inductor/graph.py#L570-L577
             w_scale.realize()
             w_zp.realize()
-            if w_zp.get_dtype() != torch.int32 and isinstance(
-                ir.InputsKernel.unwrap_storage_for_input(w_zp),
-                ir.ConstantBuffer,
-            ):
-                w_zp_tensor = V.graph.constants[w_zp.get_name()].to(torch.int32)
-                w_zp = V.graph.add_tensor_constant(  # type: ignore[assignment]
-                    torch.tensor(w_zp_tensor, dtype=torch.int32), name=w_zp.get_name()
-                )
+            if w_zp.get_dtype() != torch.int32:
+                if isinstance(
+                    ir.InputsKernel.unwrap_storage_for_input(w_zp),
+                    ir.ConstantBuffer,
+                ):
+                    w_zp_tensor = V.graph.constants[w_zp.get_name()].to(torch.int32)
+                    w_zp = V.graph.add_tensor_constant(  # type: ignore[assignment]
+                        torch.tensor(w_zp_tensor, dtype=torch.int32),
+                        name=w_zp.get_name(),
+                    )
+                else:
+                    w_zp = to_dtype(w_zp, torch.int32)
             if binary_attr == "sum":
                 if output_dtype in [
                     torch.float32,
