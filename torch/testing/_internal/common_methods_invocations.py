@@ -13198,11 +13198,12 @@ op_db: list[OpInfo] = [
            # This addmm OpInfo is for when alpha and beta are not both equal to 1.
            # alpha=beta=1 is tested in the following opinfo, because that special case will
            # trigger addmm being decomposed by a jit pass.
-           dtypes=all_types_and_complex_and(torch.float16, torch.bfloat16),
-           dtypesIfROCM=floating_and_complex_types_and(torch.float16, torch.bfloat16),
-           dtypesIfCUDA=floating_and_complex_types_and(torch.float16, torch.bfloat16),
-           dtypesIfHpu=custom_types(torch.float32, torch.bfloat16),
-           assert_autodiffed=True,
+            dtypes=all_types_and_complex_and(torch.float16, torch.bfloat16),
+            dtypesIfROCM=floating_and_complex_types_and(torch.float16, torch.bfloat16),
+            dtypesIfCUDA=floating_and_complex_types_and(torch.float16, torch.bfloat16),
+            dtypesIfXPU=floating_and_complex_types_and(torch.float16, torch.bfloat16),
+            dtypesIfHpu=custom_types(torch.float32, torch.bfloat16),
+            assert_autodiffed=True,
            supports_forward_ad=True,
            supports_fwgrad_bwgrad=True,
            gradcheck_nondet_tol=GRADCHECK_NONDET_TOL,
@@ -13222,10 +13223,11 @@ op_db: list[OpInfo] = [
            )),
     OpInfo('addmm',
            # When alpha=beta=1 as compile-time constants, JIT will decompose addmm into mm and add.
-           variant_test_name='decomposed',
-           dtypes=all_types_and_complex_and(torch.float16, torch.bfloat16),
-           dtypesIfCUDA=floating_and_complex_types_and(torch.float16, torch.bfloat16),
-           dtypesIfHpu=custom_types(torch.float32, torch.bfloat16),
+            variant_test_name='decomposed',
+            dtypes=all_types_and_complex_and(torch.float16, torch.bfloat16),
+            dtypesIfCUDA=floating_and_complex_types_and(torch.float16, torch.bfloat16),
+            dtypesIfXPU=floating_and_complex_types_and(torch.float16, torch.bfloat16),
+            dtypesIfHpu=custom_types(torch.float32, torch.bfloat16),
            assert_autodiffed=True,
            supports_forward_ad=True,
            supports_fwgrad_bwgrad=True,
@@ -13247,6 +13249,8 @@ op_db: list[OpInfo] = [
            dtypes=all_types_and_complex_and(torch.bfloat16, torch.float16),
            dtypesIfCUDA=floating_types_and(torch.float16, torch.complex64, torch.complex128,
                                            torch.bfloat16),
+           dtypesIfXPU=floating_types_and(torch.float16, torch.complex64, torch.complex128,
+                                          torch.bfloat16),
            supports_forward_ad=True,
            supports_fwgrad_bwgrad=True,
            decorators=[
