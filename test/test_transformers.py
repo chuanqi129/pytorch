@@ -4581,6 +4581,9 @@ class TestSDPACudaOnly(NNTestCase):
         if fused_kernel == SDPBackend.FLASH_ATTENTION and is_causal and seq_len_q != seq_len_k:
             self.skipTest("Flash V2 does not accept is_casual when seq_len_q != seq_len_k")
 
+        if device == "xpu":
+            self.skipTest("SYCL Graph does not support work_group_scratch_memory")
+
         seed = 42
         n_heads = 4
         query = torch.rand(batch_size, n_heads, seq_len_q, head_dim,
