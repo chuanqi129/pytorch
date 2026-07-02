@@ -3791,6 +3791,16 @@ TORCH_IMPL_FUNC(linalg_ldl_solve_out)
     return;
   }
 
+  // Lapack SYTRS writes into unrelated memory if |IPIV(k)| is outside [1, N]
+  // (negative values encode 2x2 block pivots), so validate before dispatch
+  // so all devices (CPU, CUDA, XPU) get a clean error rather than a crash.
+  TORCH_CHECK(pivots.abs().ge(1).all().item<bool>(),
+              "Pivots given to ldl_solve must all satisfy |pivot| >= 1. "
+              "Did you properly pass the result of ldl_factor?");
+  TORCH_CHECK(pivots.abs().le(LD.size(-2)).all().item<bool>(),
+              "Pivots given to ldl_solve must all satisfy |pivot| <= LD.size(-2). "
+              "Did you properly pass the result of ldl_factor?");
+
   auto pivots_ = pivots.expect_contiguous();
 
   auto LD_ = at::native::borrow_else_clone(
