@@ -100,6 +100,27 @@ class TestAlgorithmSelectorChoiceTypes(TestCase):
 
         self.assertIs(picked, extern_choice)
 
+    def test_pick_deterministic_choice_returns_first_extern_when_multiple(self):
+        non_extern = select_algorithm.ChoiceCaller("not_extern", [], None, "")
+        extern_first = self._extern_kernel_caller("mm")
+        extern_second = self._extern_kernel_caller("addmm")
+
+        picked = select_algorithm.AlgorithmSelectorCache().pick_deterministic_choice(
+            [non_extern, extern_first, extern_second]
+        )
+
+        self.assertIs(picked, extern_first)
+
+    def test_pick_deterministic_choice_falls_back_when_no_extern(self):
+        first_choice = select_algorithm.ChoiceCaller("not_extern_a", [], None, "")
+        second_choice = select_algorithm.ChoiceCaller("not_extern_b", [], None, "")
+
+        picked = select_algorithm.AlgorithmSelectorCache().pick_deterministic_choice(
+            [first_choice, second_choice]
+        )
+
+        self.assertIs(picked, first_choice)
+
     def test_classify_kernel_operation_uses_extern_kernel_caller_name(self):
         cases = (
             ("mm", "mm"),
