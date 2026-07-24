@@ -575,6 +575,9 @@ def create_functionalized_rng_ops_wrapper(
         ):
             return append_rng_offsets(*func(*primals_fwd_seed_fwd_base_offset[:-2]))
 
+    if not torch.cuda.is_available():
+        return func, args, args_descs
+
     if trace_joint:
         # Get the current seed and offset to setup tracing.
         fwd_seed, fwd_base_offset = CUDARngStateHelper.get_torch_state_as_tuple(
