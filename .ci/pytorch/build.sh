@@ -175,6 +175,10 @@ if [[ "$BUILD_ENVIRONMENT" == *xpu* ]]; then
   if [[ "$BUILD_ENVIRONMENT" == *client* ]]; then
     export TORCH_XPU_ARCH_LIST=bmg
   fi
+  # Temporarily disable Kineto for xpu n-1
+  if [[ "$BUILD_ENVIRONMENT" == *n-1* ]]; then
+    export USE_KINETO=0
+  fi
 fi
 
 # sccache will fail for CUDA builds if all cores are used for compiling
