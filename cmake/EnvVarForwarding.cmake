@@ -83,6 +83,7 @@
 #   MKLDNN_CPU_RUNTIME       MKL-DNN threading mode: TBB or OMP (default)
 #   ATEN_THREADING           OMP or NATIVE intra-/inter-op parallel backend
 #   ONNX_NAMESPACE           namespace for the ONNX built here
+#   TORCH_XPU_OPS_COMMIT     full commit SHA overriding third_party/xpu.txt
 #   ATEN_AVX512_256=TRUE     let ATen AVX2 kernels use 32 ymm registers (read from
 #                            the environment in cmake/Codegen.cmake)
 #
@@ -165,6 +166,7 @@ set(_ENV_PASSTHROUGH
   SELECTED_OP_LIST
   TORCH_CUDA_ARCH_LIST
   TORCH_XPU_ARCH_LIST
+  TORCH_XPU_OPS_COMMIT
   TRACING_BASED
   PYTHON_SIX_SOURCE_DIR
 )

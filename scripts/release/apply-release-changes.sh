@@ -17,6 +17,9 @@ GIT_TOP_DIR=$(git rev-parse --show-toplevel)
 RELEASE_VERSION=${RELEASE_VERSION:-$(cut -d'.' -f1-2 "${GIT_TOP_DIR}/version.txt")}
 DRY_RUN=${DRY_RUN:-enabled}
 
+XPU_RELEASE_REF="refs/heads/release/${RELEASE_VERSION}"
+git ls-remote --exit-code https://github.com/intel/torch-xpu-ops.git "${XPU_RELEASE_REF}" > /dev/null
+
 echo "Applying to workflows"
 for i in .github/workflows/*.yml; do
     sed -i -e s#@main#@"release/${RELEASE_VERSION}"# $i;
@@ -43,6 +46,10 @@ sed -i -e s#-\ main#"-\ release\/${RELEASE_VERSION}"# .github/workflows/build-tr
 echo "XLA Changes"
 sed -i -e s#--quiet#-b\ r"${RELEASE_VERSION}"# .ci/pytorch/common_utils.sh
 sed -i -e s#.*#r"${RELEASE_VERSION}"# .github/ci_commit_pins/xla.txt
+
+# XPU related changes
+echo "XPU Changes"
+printf '%s\n' "${XPU_RELEASE_REF}" > "${GIT_TOP_DIR}/third_party/xpu.txt"
 
 # Regenerate templates
 export RELEASE_VERSION_TAG=${RELEASE_VERSION}
